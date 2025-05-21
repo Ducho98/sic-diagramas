@@ -1,0 +1,38 @@
+@startuml emailAvailable_web
+actor Usuario
+participant Frontend
+participant Backend
+participant ClientController
+participant CalimacoService
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "email": "test@example.com"
+  }
+end note
+Frontend -> Backend : POST /emailAvailable_web
+Backend -> ClientController : emailAvailable(request)
+ClientController -> ClientController : validar datos del request
+
+== Llamada al servicio ==
+ClientController -> CalimacoService : fncEmailAvailable(email)
+CalimacoService -> CalimacoService : Verificar email en Calimaco\nfncCalimacoCurlRequest(email)
+note right of CalimacoService
+    Guardar request y response
+    del cURL en tbl_api
+end note
+CalimacoService --> CalimacoService : response (available: true/false)
+note right of CalimacoService
+    true = existe email en Calimaco
+    false = no existe email en Calimaco
+end note
+CalimacoService --> ClientController : respuesta si existe o no
+
+== Responder al cliente ==
+ClientController -> Backend : respuesta final
+Backend -> Frontend : respuesta al usuario
+Frontend -> Usuario : mostrar respuesta
+@enduml

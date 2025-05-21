@@ -1,0 +1,35 @@
+@startuml
+actor Usuario
+participant Frontend
+participant Backend
+participant HashLimiterController
+database DB as "tbl_hash_limiter"
+
+== Generar hash ==
+Usuario -> Frontend : Solicita acceso
+Frontend -> Backend : POST /create_hash
+Backend -> HashLimiterController : create_hash()
+
+note right of HashLimiterController
+  - Genera un hash único
+  - Tiempo de expiración (1 hora)
+  - Inicializa intentos por endpoint:
+    {
+      "api/sms": {attempts: 0, max: 4},
+      "api/sms_aws": {attempts: 0, max: 4},
+      "api/email": {attempts: 0, max: 4}
+    }
+end note
+
+HashLimiterController -> DB : INSERT INTO tbl_hash_limiter
+note right of DB
+  Guarda:
+  - hash
+  - expiración
+  - intentos por endpoint
+end note
+
+DB --> HashLimiterController : Confirmación guardado
+HashLimiterController --> Backend : hash generado
+Backend -> Frontend : Retorna hash al cliente
+@enduml

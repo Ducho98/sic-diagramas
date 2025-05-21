@@ -1,0 +1,72 @@
+@startuml email
+actor Usuario
+participant Frontend
+participant Backend
+participant EmailController
+participant AwsSendEmail
+database DB as "aws_code_emails"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "email": "test123@test.com",
+    "name": "Antonio"
+  }
+end note
+Frontend -> Backend : POST /email()
+Backend -> EmailController : send_email(request)
+EmailController -> EmailController : validar datos del body
+
+== Llamada al servicio ==
+EmailController -> AwsSendEmail : send_email(email)
+
+== Obtener y validar dominio ==
+AwsSendEmail -> AwsSendEmail : extraer dominio del email
+AwsSendEmail -> AwsSendEmail : buscar en lista blanca
+
+alt Dominio SI está en lista blanca
+    note right of AwsSendEmail
+        Continuar proceso
+    end note
+else Dominio NO está en lista blanca
+    AwsSendEmail -> AwsSendEmail : validar dominio vía cURL
+    note right of AwsSendEmail
+        Guardar request y response
+        del cURL en tbl_api
+    end note
+    alt Dominio encontrado
+        note right of AwsSendEmail
+          Continuar proceso
+        end note
+    else Dominio NO encontrado
+        AwsSendEmail --> EmailController : dominio no encontrado
+        EmailController -> Backend : respuesta de error
+        Backend -> Frontend : mostrar error
+    end
+end
+
+== Generar y guardar/actualizar código ==
+AwsSendEmail -> AwsSendEmail : generar código de 6 dígitos
+AwsSendEmail -> DB : buscar email en aws_code_emails
+
+alt Email existe
+    DB --> AwsSendEmail : encontrado
+    AwsSendEmail -> DB : UPDATE code en aws_code_emails
+else Email no existe
+    DB --> AwsSendEmail : no encontrado
+    AwsSendEmail -> DB : INSERT email y code en aws_code_emails
+end
+
+AwsSendEmail -> AwsSendEmail : código generado y guardado
+
+== Enviar correo ==
+AwsSendEmail -> AwsSendEmail : enviar email
+AwsSendEmail --> EmailController : verificar email
+
+== Responder al cliente ==
+EmailController -> Backend : respuesta final
+Backend -> Frontend : respuesta al usuario
+Frontend -> Usuario : mostrar respuesta
+@enduml
