@@ -35,10 +35,9 @@ end
 CustomerServiceImpl -> CustomerServiceImpl : fncTransactionRetail(data)
 activate CustomerServiceImpl
     CustomerServiceImpl -> CustomerServiceImpl : construye url y headers
-    CustomerServiceImpl -> CustomerServiceImpl : consume endpoint de vibra\nfncVibraCurlRequest(url, headers, "POST", data)
+    CustomerServiceImpl -> Vibra : consume endpoint de vibra\nfncVibraCurlRequest(url, headers, "POST", data)
     activate CustomerServiceImpl
     deactivate CustomerServiceImpl
-
 deactivate CustomerServiceImpl
 
 note right of CustomerServiceImpl
@@ -46,6 +45,8 @@ note right of CustomerServiceImpl
   response de la api
   de vibra en tbl_api
 end note
+
+Vibra --> CustomerServiceImpl : response vibra
 
 CustomerServiceImpl -> CustomerServiceImpl : comparar codes de vibra\ncon los establecidos
 
