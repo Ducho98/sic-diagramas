@@ -1,0 +1,43 @@
+@startuml ubigeo
+actor Usuario
+participant Frontend
+participant Backend
+participant UbigeoController
+participant Ubigeo
+database DB as "ubigeos"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "department_code": "01",
+    "province_code": "01",
+    "district_code": "01"
+  }
+end note
+Frontend -> Backend : POST /ubigeo
+Backend -> UbigeoController : show(request)
+UbigeoController -> UbigeoController : validar datos del body
+
+== LLamada al servicio ==
+UbigeoController -> Ubigeo : getUbigeos(request)
+note right of UbigeoController
+    Muestra todos los
+    departamentos en
+    caso no exista nada
+    en el body
+end note
+alt Department_code
+    Ubigeo --> UbigeoController : muestra provincias
+else Department_code, province_code
+    Ubigeo --> UbigeoController : muestra distritos
+else Department_code, province_code, district_code
+    Ubigeo --> UbigeoController : muestra distrito
+end
+
+UbigeoController -> Backend : response ubigeo
+
+Backend -> Frontend : Mostrar respuesta
+Frontend -> Usuario : Mostrar al usuario
+@enduml

@@ -1,0 +1,68 @@
+@startuml validate_dni
+actor Usuario
+participant Frontend
+participant Backend
+participant ClientController
+participant ReniecController
+database DB as "tbl_consultas_dni"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "national_id": "70707070",
+    "fistname": "Pedro Juan",
+    "lastname": "Perez Flores"
+  }
+end note
+Frontend -> Backend : POST /validate_dni
+Backend -> ClientController : validate_dni(request)
+ClientController -> ClientController : validar datos del body
+
+== LLamada al servicio ==
+ClientController -> ReniecController : fncValidateNamesDNI(national_id, firstname, lastname)
+ReniecController -> ReniecController : elimina acentos de\nfirstname y lastname\n(tilde, dieresis, etc)
+ReniecController -> ReniecController : Busca nombres y apellidos\ninternalFindDni(national_id)
+
+alt Existe en DB
+    ReniecController --> ReniecController : retorna nombres y apellidos
+    note right of ReniecController
+        Continuar proceso
+    end note
+else No existe en DB
+    ReniecController -> ReniecController : llamada a api de reniec
+    alt Error api reniec
+        ReniecController --> ClientController : API RENIEC down/API RENIEC cuota
+        ClientController --> Backend : se agrega hash_dni al\nresponse para saber el motivo
+    else No error api reniec
+        alt Mayor de edad
+            note right of ReniecController
+                Continuar proceso
+            end note
+        else Menor de edad
+            ReniecController --> ClientController : Invalid DNI/under-age
+            ClientController --> Backend : response sin hash_dni
+        end
+
+        ReniecController --> ReniecController : retorna nombres y apellidos
+    end
+end
+
+== Comparación de nombres y apellidos ==
+ReniecController -> ReniecController : elimina acentos de\nnombres y apellidos\n(tilde, dieresis, etc)\nde la DB o api reniec
+ReniecController -> ReniecController : compara los nombres\ny apellidos enviados\ndesde el cliente con los\nobtenidos de la DB o api\nreniec
+
+alt Si coinciden los nombres y apellidos
+    ReniecController --> ClientController : validación correcta
+    ClientController -> ClientController : convierte a mayúscula nombres y apellidos
+    ClientController -> ClientController : incluye hash_dni en el response
+    ClientController -> Backend : respuesta de coincidencia\ncon hash_dni
+else No coinciden los nombres y apellidos
+    ReniecController --> ClientController : validación incorrecta
+    ClientController -> Backend : respuesta de no coincidencia
+end 
+
+Backend -> Frontend : Mostrar respuesta
+Frontend -> Usuario : Mostrar al usuario
+@enduml

@@ -1,0 +1,68 @@
+@startuml transaction_retail
+actor Usuario
+participant Frontend
+participant Backend
+participant CustomerController
+participant CustomerServiceImpl
+participant Vibra
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "typeDocument": "dni",
+    "identifier": "71274874",
+    "totalAmount": 21
+  }
+end note
+Frontend -> Backend : POST /transaction_retail
+Backend -> CustomerController : transactionRetail(request)
+CustomerController -> CustomerController : genera código random\ngenerateRandomCode()
+CustomerController -> CustomerController : prepara dataRequest
+
+== Llamada al servicio ==
+CustomerController -> CustomerServiceImpl : transactionRetail(dataRequest)
+
+alt Existe token
+  note right of CustomerServiceImpl
+      Continuar proceso
+  end note
+else No existe token
+  CustomerServiceImpl -> CustomerServiceImpl : Crear token\nfncAuth()
+end
+
+CustomerServiceImpl -> CustomerServiceImpl : fncTransactionRetail(data)
+activate CustomerServiceImpl
+    CustomerServiceImpl -> CustomerServiceImpl : construye url y headers
+    CustomerServiceImpl -> CustomerServiceImpl : consume endpoint de vibra\nfncVibraCurlRequest(url, headers, "POST", data)
+    activate CustomerServiceImpl
+    deactivate CustomerServiceImpl
+
+deactivate CustomerServiceImpl
+
+note right of CustomerServiceImpl
+  Guarda request y
+  response de la api
+  de vibra en tbl_api
+end note
+
+CustomerServiceImpl -> CustomerServiceImpl : comparar codes de vibra\ncon los establecidos
+
+alt code 000 - cliente válido
+  CustomerServiceImpl -> CustomerServiceImpl : se agrega al response\ncustomer y transaction_id 
+  CustomerServiceImpl --> CustomerController : response con customer\ny transaction_id
+  CustomerController -> Backend : respuesta sin restricción
+else code 395
+  CustomerServiceImpl -> CustomerServiceImpl : se modifica\nel mensaje del response
+  CustomerServiceImpl --> CustomerController : response code y message
+  CustomerController -> Backend : respuesta con restricción
+else otros code
+  CustomerServiceImpl -> CustomerServiceImpl : response code y message
+  CustomerServiceImpl --> CustomerController : response code y message
+  CustomerController -> Backend : respuesta con restricción
+end
+
+Backend -> Frontend : Mostrar respuesta
+Frontend -> Usuario : Mostrar al usuario
+@enduml

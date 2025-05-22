@@ -1,0 +1,49 @@
+@startuml validate_otp_mobile
+actor Usuario
+participant Frontend
+participant Backend
+participant SmsController
+database DB as "retail_code_mobiles"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "mobile": 930398200",
+    "code": "123456",
+    "xstring": "asd:asdasdasdasdasd"
+  }
+end note
+Frontend -> Backend : POST /validate_otp_mobile
+Backend -> SmsController : validate_otp_mobile(request)
+SmsController -> SmsController : validar datos del body
+
+== Desencriptar xstring ==
+alt No se manda el campo xstring 
+    note right of SmsController
+        Continuar proceso
+    end note
+else Si se manda el campo xstring
+    SmsController -> SmsController : desencriptar xstring y obtener\nel valor real del teléfono
+    alt Si ocurre un error al desencriptar el xstring
+        SmsController --> Backend : respuesta error\nxstring inválido/teléfono inválido
+        Backend --> Frontend : respuesta error
+    else
+        note right of SmsController
+            Continuar proceso
+        end note
+    end
+end
+
+== Validar código en base de datos ==
+SmsController -> DB : SELECT * FROM retail_code_mobiles\nWHERE mobile = ? AND code = ?
+alt Coincide
+    SmsController -> Backend : return status: true
+else No coincide
+    SmsController -> Backend : return status: false
+end
+
+Backend --> Frontend : Mostrar respuesta
+Frontend --> Usuario : Mostrar al usuario
+@enduml

@@ -1,0 +1,55 @@
+@startuml validate_dni_menor
+actor Usuario
+participant Frontend
+participant Backend
+participant ClientController
+participant ReniecController
+database DB as "tbl_consultas_dni"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "national_id": "70707070"
+  }
+end note
+Frontend -> Backend : POST /validate/dni/menor
+Backend -> ClientController : validate/dni/menor(request)
+ClientController -> ClientController : validar datos del body
+
+== LLamada al servicio ==
+ClientController -> ReniecController : internalFindDni(national_id)
+ReniecController -> ReniecController : Busca nombres y apellidos\nen DB o api reniec
+
+alt Existe en DB
+    ReniecController --> ReniecController : retorna nombres y apellidos
+    note right of ReniecController
+        Continuar proceso
+    end note
+else No existe en DB
+    ReniecController -> ReniecController : llamada a api de reniec
+    alt Error api reniec
+        ReniecController --> ClientController : API RENIEC down/API RENIEC cuota
+        ClientController --> Backend : se agrega hash_menor al\nresponse para saber el motivo
+    else No error api reniec
+        alt Mayor de edad
+            note right of ReniecController
+                Continuar proceso
+            end note
+        else Menor de edad
+            ReniecController --> ClientController : Invalid DNI/under-age
+            ClientController --> Backend : response sin hash_menor
+        end
+
+        ReniecController --> ReniecController : retorna nombres y apellidos
+    end
+end
+
+ReniecController --> ClientController : response nombres y apellidos
+ClientController -> ClientController : eliminar en el response los\nnombres y apellidos
+ClientController --> Backend : response con hash_menor
+
+Backend -> Frontend : Mostrar respuesta
+Frontend -> Usuario : Mostrar al usuario
+@enduml

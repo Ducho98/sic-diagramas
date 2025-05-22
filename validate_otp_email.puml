@@ -1,0 +1,49 @@
+@startuml validate_otp_email
+actor Usuario
+participant Frontend
+participant Backend
+participant EmailController
+database DB as "aws_code_emails"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "email": "test@example.com",
+    "code": "123456",
+    "xstring": "asd:asdasdasdasdasd"
+  }
+end note
+Frontend -> Backend : POST /validate_otp_email
+Backend -> EmailController : validate_otp_email(request)
+EmailController -> EmailController : validar datos del body
+
+== Desencriptar xstring ==
+alt No se manda el campo xstring 
+    note right of EmailController
+        Continuar proceso
+    end note
+else Si se manda el campo xstring
+    EmailController -> EmailController : desencriptar xstring y obtener\nel valor real del email
+    alt Si ocurre un error al desencriptar el xstring
+        EmailController --> Backend : respuesta error\nxstring inválido/email inválido
+        Backend --> Frontend : respuesta error
+    else
+        note right of EmailController
+            Continuar proceso
+        end note
+    end
+end
+
+== Validar código en base de datos ==
+EmailController -> DB : SELECT * FROM aws_code_emails\nWHERE email = ? AND code = ?
+alt Coincide
+    EmailController -> Backend : return status: true
+else No coincide
+    EmailController -> Backend : return status: false
+end
+
+Backend --> Frontend : Mostrar respuesta
+Frontend --> Usuario : Mostrar al usuario
+@enduml
