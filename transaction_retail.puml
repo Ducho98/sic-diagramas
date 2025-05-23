@@ -29,24 +29,22 @@ alt Existe token
       Continuar proceso
   end note
 else No existe token
-  CustomerServiceImpl -> CustomerServiceImpl : Crear token\nfncAuth()
+  CustomerServiceImpl -> CustomerServiceImpl : Crear token (endpoint vibra)\nfncAuth()
 end
 
 CustomerServiceImpl -> CustomerServiceImpl : fncTransactionRetail(data)
 activate CustomerServiceImpl
     CustomerServiceImpl -> CustomerServiceImpl : construye url y headers
     CustomerServiceImpl -> Vibra : consume endpoint de vibra\nfncVibraCurlRequest(url, headers, "POST", data)
+    note right of CustomerServiceImpl
+      Guarda request y
+      response de la api
+      de vibra en tbl_api
+    end note
+    Vibra --> CustomerServiceImpl : response vibra
     activate CustomerServiceImpl
     deactivate CustomerServiceImpl
 deactivate CustomerServiceImpl
-
-note right of CustomerServiceImpl
-  Guarda request y
-  response de la api
-  de vibra en tbl_api
-end note
-
-Vibra --> CustomerServiceImpl : response vibra
 
 CustomerServiceImpl -> CustomerServiceImpl : comparar codes de vibra\ncon los establecidos
 
