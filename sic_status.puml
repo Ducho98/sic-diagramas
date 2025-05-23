@@ -1,0 +1,19 @@
+@startuml sic_status
+actor Usuario
+participant Frontend
+participant Backend
+participant SicStatusController
+participant .env
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+Frontend -> Backend : POST /sic_status()
+Backend -> SicStatusController : sic_status()
+SicStatusController -> .env : busca la variable de entorno\nESTADO_MSJ_SIC
+.env --> SicStatusController : retorna valor de la variable\ntrue/false
+
+== Responder al cliente ==
+SicStatusController -> Backend : respuesta final
+Backend -> Frontend : respuesta al usuario
+Frontend -> Usuario : mostrar respuesta
+@enduml

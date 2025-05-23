@@ -1,0 +1,32 @@
+@startuml save_data_mincetur_ludopatia_v3
+actor Usuario
+participant Frontend
+participant Backend
+participant MinceturController
+database DB as "temp_ludopatia"
+database DB2 as "tbl_mincetur_ludopatia"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+Frontend -> Backend : POST /sic_status_message()
+Backend -> MinceturController : save_data_mincetur_ludopatia_temp_v3()
+
+MinceturController -> DB : eliminar datos de la tabla temporal
+DB --> MinceturController : resultado ok
+MinceturController -> MinceturController : preparar datos para insertar\na la tabla temporal
+MinceturController -> DB : insertar datos en la tabla temporal
+DB --> MinceturController : resultado ok
+MinceturController -> DB2 : actualizar registros existentes\nen la tabla principal
+DB2 --> MinceturController : resultado ok
+MinceturController -> DB2 : insertar nuevos registros que\nno existen en la tabla principal
+DB2 --> MinceturController : resultado ok
+MinceturController -> DB2 : actualizar a estado 0 los registros\nque no están en la carga actual
+DB2 --> MinceturController : resultado ok
+MinceturController -> DB : eliminar datos de la tabla temporal
+DB --> MinceturController : resultado ok
+
+== Responder al cliente ==
+MinceturController -> Backend : registros ingresados y/o actualizados
+Backend -> Frontend : respuesta al usuario
+Frontend -> Usuario : mostrar respuesta
+@enduml

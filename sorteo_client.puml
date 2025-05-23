@@ -1,0 +1,42 @@
+@startuml sorteo_cliente
+actor Usuario
+participant Frontend
+participant Backend
+participant SorteoController
+database DB as "tbl_cliente_sorteo"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "token": "asdasdasdasdasd",
+    "sorteo_estado": 1,
+    "premio": 26
+  }
+end note
+Frontend -> Backend : POST /sorteo_cliente
+Backend -> SorteoController : reportar_sorteo(request)
+SorteoController -> SorteoController : validar datos del body
+SorteoController -> SorteoController : obtener ip del usuario
+SorteoController -> DB : SELECT * FROM tbl_cliente_sorteo\nWHERE token = ? AND estado = 1
+DB --> SorteoController : retorna cantidad registros
+
+alt Registros = 0
+    SorteoController -> DB : crea nuevo sorteo y lo guarda en la DB
+    DB --> SorteoController : sorteo registrado
+    SorteoController -> Backend : respuesta sorteo registrado
+else Registros = 1
+    alt Estado token = 0
+        SorteoController -> SorteoController : sorteo actualizado
+    else
+        SorteoController -> SorteoController : sorteo ya registrado
+    end
+    SorteoController -> Backend : respuesta sorteo
+else Registros != 0, 1
+    SorteoController -> Backend : respuesta token inválido
+end
+
+Backend -> Frontend : Mostrar respuesta
+Frontend -> Usuario : Mostrar al usuario
+@enduml

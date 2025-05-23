@@ -1,0 +1,75 @@
+@startuml sms_web
+actor Usuario
+participant Frontend
+participant Backend
+participant IntermaxController
+participant SendSMS
+database DB as "retail_code_mobiles"
+participant Intermax
+participant IntermaxResponse
+database DB2 as "intermax_responses"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "mobile": "930398201",
+    "name": "Antonio",
+    "xstring": "asd:asdasdasdasdasd"
+  }
+end note
+Frontend -> Backend : POST /sms_web()
+Backend -> IntermaxController : send_sms_web(request)
+IntermaxController -> IntermaxController : validar datos del body
+
+== Desencriptar xstring ==
+alt No se manda el campo xstring 
+    note right of IntermaxController
+        Continuar proceso
+    end note
+else Si se manda el campo xstring
+    IntermaxController -> IntermaxController : desencriptar xstring y obtener\nel valor real del teléfono
+    alt Si ocurre un error al desencriptar el xstring
+        IntermaxController --> Backend : respuesta error\nxstring inválido
+    else
+        note right of IntermaxController
+            Continuar proceso
+        end note
+    end
+end
+
+== Llamada al servicio ==
+IntermaxController -> SendSMS : send_sms(request, mobile_desencriptado??"")
+SendSMS -> DB : SELECT * FROM retail_code_mobiles\nWHERE mobile = ?
+DB --> SendSMS : retorna data
+
+alt Existe en la DB
+    SendSMS -> SendSMS : genera mensaje y código\nde 6 dígitos
+    SendSMS -> DB : actualiza código de 6 dígitos\ndel teléfono existente
+    DB --> SendSMS : retorna actualización
+else No existe en la DB
+    SendSMS -> SendSMS : genera mensaje y código\nde 6 dígitos
+    SendSMS -> DB : registra teléfono con código\nde 6 dígitos
+    DB --> SendSMS : retorna registro
+end 
+
+SendSMS -> Intermax : send_sms(request)
+Intermax -> Intermax : llamada a api de intermax\npara mensajes de texto
+note right of Intermax
+    Guardar request y response
+    del cURL en tbl_api
+end note
+Intermax -> IntermaxResponse : save_response(response, send_sms)
+IntermaxResponse -> DB2 : guarda response del api\nde Intermax
+DB2 --> IntermaxResponse : response registro
+IntermaxResponse --> Intermax :  response
+Intermax --> SendSMS : response
+SendSMS --> IntermaxController : response
+IntermaxController -> IntermaxController : generar hash_mobile
+
+== Responder al cliente ==
+IntermaxController -> Backend : respuesta final
+Backend -> Frontend : respuesta al usuario
+Frontend -> Usuario : mostrar respuesta
+@enduml
