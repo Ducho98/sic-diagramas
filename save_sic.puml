@@ -1,0 +1,89 @@
+@startuml save_sic
+actor Usuario
+participant Frontend
+participant Backend
+participant KountController
+participant KountResponse
+database DB as "kount_register_calimacos"
+database DB2 as "kount_responses"
+participant SDK_KOUNT
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : ingresar datos
+note right of Usuario
+  enviar body:
+  {
+    "setSessionId": "b0afe719c2714171ba9f087214b587lk",
+    "setName": "Pedro",
+    "setBillingAddress": "nueva",
+    "setEmail": "pedro@test.com",
+    "setGender": "M",
+    "setDateOfBirth": "2007-2-28",
+    "setBonus": "30-freespins-de-bienvenida"
+  }
+end note
+Frontend -> Backend : POST kount/save_sic
+Backend -> KountController : save_sic(request)
+KountController -> KountController : validar campos del request
+
+alt Error validación
+    KountController --> Backend : response 422 error validación
+    Backend -> Frontend : mostrar error
+end
+
+KountController -> KountController : generar hash_kount
+KountController -> KountController : obtener ip del usuario
+KountController -> KountResponse : getResponseKount(request)
+KountResponse -> KountResponse : formatear setDateOfBirth (Y-m-d)
+
+KountResponse -> DB : busca en kount_register_calimacos si el email existe
+DB --> KountResponse : resultado
+alt Email encontrado
+    KountResponse -> DB2 : busca en kount_responses el campo id filtrando por REASON_CODE
+    note right of KountResponse
+        REASON_CODE: A_Nivel1
+        REASON_CODE: A_Nivel2
+        REASON_CODE: A_Nivel3
+        REASON_CODE: D_Nivel6
+    end note
+    DB2 --> KountResponse : resultado
+    
+    alt Se encontró
+        KountResponse --> KountController : return reason_code y descripción
+
+        alt REASON_CODE = D_Nivel6
+            KountController --> Backend : return ip y response
+        else REASON_CODE = 4
+            KountController -> KountController : generar hash_kount\nconcatenando SC2
+            KountController --> Backend : return hash_kount, ip y response
+        else REASON_CODE = 5
+            KountController -> KountController : generar hash_kount\nconcatenando SC5
+            KountController --> Backend : return hash_kount, ip y response
+        else REASON_CODE = 1, 2, 3
+            KountController --> Backend : return hash_kount, ip y response
+        end 
+        
+    else No se encontró
+        KountResponse -> DB2 : obtener último id de kount_responses
+        DB2 --> KountResponse : resultado
+        KountResponse -> SDK_KOUNT : preparar data para enviar al SDK de KOUNT
+        SDK_KOUNT --> KountResponse : obtener respuesta del SDK de KOUNT
+        KountResponse -> KountResponse : convertir a objeto la respuesta (response)
+        KountResponse -> KountResponse : preparar data (sendRegisterKountCalimaco)
+        KountResponse -> DB2 : guardar en kount_responses\nsaveKount(response, sendRegisterKountCalimaco) 
+        DB2 --> KountResponse : resultado
+        
+        alt Registro exitoso
+            KountResponse --> KountController : return reason_code y descripción 
+        end
+    end 
+end
+
+alt Error inesperado
+    KountController -> KountController : generar hash_kount\nconcatenando SC3
+    KountController --> Backend : response 503 (hash_kount, ip y response)
+    Backend -> Frontend : mostrar error
+end
+
+Frontend -> Usuario : respuesta al usuario
+@enduml
