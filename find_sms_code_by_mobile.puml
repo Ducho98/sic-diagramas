@@ -1,0 +1,40 @@
+@startuml find_sms_code_by_mobile
+actor Usuario
+participant Frontend
+participant Backend
+participant RetailCodeMobileController
+participant RetailCodeMobile
+database DB as "retail_code_mobiles"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "mobile": "930310101"
+  }
+end note
+Frontend -> Backend : POST /find_sms_code_by_mobile
+Backend -> RetailCodeMobileController : get_sms_code_and_doc_number_by_mobile(request)
+RetailCodeMobileController -> RetailCodeMobileController : validar datos del body
+
+== Llamada al servicio ==
+RetailCodeMobileController -> RetailCodeMobile : get_sms_code_and_doc_number_by_mobile(mobile)
+RetailCodeMobile -> DB : buscar en retail_code_mobiles\nsi el mobile existe con estado\nregistrado igual a 1 
+DB --> RetailCodeMobile : resultado ok
+RetailCodeMobile --> RetailCodeMobileController : response true : false
+
+alt true
+    alt Teléfono con estado registrado = 1
+        RetailCodeMobileController -> Backend : teléfono ya registrado\ncon número de documento
+    else Teléfono con estado registrado != 1
+        RetailCodeMobileController -> Backend : teléfono no registrado\ncon el código sms
+    end
+else false
+    RetailCodeMobileController -> Backend : teléfono no existe en DB
+end
+
+== Respuesta al usuario ==
+Backend -> Frontend : Mostrar respuesta
+Frontend -> Usuario : Mostrar al usuario
+@enduml
