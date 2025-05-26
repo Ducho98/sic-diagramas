@@ -1,0 +1,32 @@
+@startuml find_data_mincetur_ludopatia
+actor Usuario
+participant Frontend
+participant Backend
+participant MinceturController
+database DB as "tbl_mincetur_ludopatia"
+
+== Envío de datos al controlador ==
+Usuario -> Frontend : Ingresar datos
+note right of Usuario
+  Enviar body:
+  {
+    "tipo_documento": "DNI",
+    "numero_documento": "70707070"
+  }
+end note
+Frontend -> Backend : POST /find_data_mincetur_ludopatia
+Backend -> MinceturController : find_data_mincetur_ludopatia(request)
+MinceturController -> MinceturController : validar datos del body
+
+MinceturController -> DB : SELECT * FROM tbl_mincetur_ludopatia\nWHERE desTipoDocu = ? AND estado = 1
+DB --> MinceturController : resultado ok
+
+alt Registro encontrado
+    MinceturController -> Backend : registro no permitido
+else Registro no encontrado
+    MinceturController -> Backend : registro no encontrado
+end
+
+Backend -> Frontend : Mostrar respuesta
+Frontend -> Usuario : Mostrar al usuario
+@enduml
